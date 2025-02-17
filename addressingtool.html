@@ -13,9 +13,9 @@
             font-size: 18px; /* Change this to your desired font size */
         }
         #controls {
-            position: absolute; top: 10px; left: 50px; background: white;
+            position: absolute; top: 10px; left: 50px; background: transparent;
             padding: 10px; z-index: 1000; border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 10px rgba(0, 0, 0,0);
         }
         .leaflet-popup-content { width: 300px !important; max-width: 500px; max-height: 250px; overflow-x: auto; overflow-y: auto; white-space: nowrap; }
         .leaflet-tooltip { background: none; border: none; box-shadow: none; font-size: 8px; font-weight: bold; }
@@ -177,7 +177,7 @@
                                 tableContent += `</tr>${tableRows}</tr></table>`;
 
                                 let popupPage2 = `<div class='popup-page' id='popupPage2' style='display:none;'>
-                                    <b>Feature Properties (Page 2):</b><br>
+                                    <b>Feature Properties:</b><br>
                                     ${tableContent}
                                     <br><button onclick="copyToClipboard(event)">Copy Table</button>
                                     <br><button onclick="showPage1(event)">← Back</button>
