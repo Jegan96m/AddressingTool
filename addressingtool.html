@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Addressing Tool</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         #map { height: 100vh; width: 100%; }
@@ -34,9 +33,9 @@
             const table = popupContent.querySelector('table');
 
             if (table) {
-                const secondRow = table.rows[1];
+                const secondRow = table.rows[1]; // Get the second row (index 1)
                 if (secondRow) {
-                    let rowText = Array.from(secondRow.cells).map(cell => cell.innerText).join("\t");
+                    let rowText = Array.from(secondRow.cells).map(cell => cell.innerText).join("\t"); // Copy as tab-separated values
                     const textArea = document.createElement("textarea");
                     textArea.value = rowText;
                     document.body.appendChild(textArea);
@@ -65,19 +64,8 @@
         }
 
         const map = L.map('map').setView([0, 0], 2);
-
-        // Add Google Maps as the basemap
-        const googleRoadmap = L.gridLayer.googleMutant({ type: "roadmap" }).addTo(map);
-        const googleSatellite = L.gridLayer.googleMutant({ type: "satellite" });
-        const googleHybrid = L.gridLayer.googleMutant({ type: "hybrid" });
-        const googleTerrain = L.gridLayer.googleMutant({ type: "terrain" });
-
-        // Add layer control to switch between Google Maps styles
-        L.control.layers({
-            "Roadmap": googleRoadmap,
-            "Satellite": googleSatellite,
-            "Hybrid": googleHybrid,
-            "Terrain": googleTerrain
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© Develop by JGN', maxZoom: 20
         }).addTo(map);
 
         document.getElementById('geojsonFileInput').addEventListener('change', function(event) {
@@ -105,7 +93,7 @@
                                 let id = feature.properties?.ID || "Unknown";
                                 let houseNumber = feature.properties?.['House Number'] || "Unknown";
                                 let vetroID = feature.properties?.['vetro_id'] || "Unknown";
-                                let address= feature.properties?.['Street Address'] || "Unknown";
+                                let address = feature.properties?.['Street Address'] || "Unknown";
                                 let combinedKey = `${id} & ${houseNumber}`;
                                 let color = seenData.get(combinedKey).length > 1 ? "red" : "#3388ff";
                                 let vetroLink = `https://app.vetro.io/fibermap/map?selectedFeature=${vetroID}#18.73/${latlng.lat}/${latlng.lng}`;
@@ -122,26 +110,26 @@
                                     <div class='popup-page' id='popupPage1'>
                                         <b>ID & House Number:</b> ${combinedKey}<br>
                                         <b>Address:</b> ${address}<br>
-                                        <b>y Coordinate:</b> ${latlng.lat}<br>
-                                        <b>x Coordinate:</b> ${latlng.lng}<br>
+                                        <b>Y Coordinate:</b> ${latlng.lat}<br>
+                                        <b>X Coordinate:</b> ${latlng.lng}<br>
                                         <br><b>View in Vetro:</b> 
                                         <a href="${vetroLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Vetro Map</a>
                                         <br><br><button onclick="showPage2(event)">Next →</button>
                                     </div>`;
 
+                                // **Remove unwanted columns from Page 2**
+                                const excludedColumns = ["ID & House Number", "X Coordinate", "Y Coordinate"];
                                 let tableContent = `<table><tr>`;
+                                let tableRows = `<tr>`;
+
                                 for (const prop in feature.properties) {
-                                    if (prop !== "ID & House Number" && prop !== "X Coordinate" && prop !== "Y Coordinate") {
+                                    if (!excludedColumns.includes(prop)) {
                                         tableContent += `<th>${prop}</th>`;
+                                        tableRows += `<td>${feature.properties[prop]}</td>`;
                                     }
                                 }
-                                tableContent += `</tr><tr>`;
-                                for (const prop in feature.properties) {
-                                    if (prop !== "ID & House Number" && prop !== "X Coordinate" && prop !== "Y Coordinate") {
-                                        tableContent += `<td>${feature.properties[prop]}</td>`;
-                                    }
-                                }
-                                tableContent += `</tr></table>`;
+
+                                tableContent += `</tr>${tableRows}</tr></table>`;
 
                                 let popupPage2 = `<div class='popup-page' id='popupPage2' style='display:none;'>
                                     <b>Feature Properties (Page 2):</b><br>
@@ -152,13 +140,23 @@
 
                                 circle.bindPopup(popupContent + popupPage2, { maxWidth: 500 });
                                 markers.push({ key: combinedKey, marker: circle });
-                                circle.bindTooltip(houseNumber, { permanent: true, direction: "top", offset: L.point(0,-5), className: "leaflet-tooltip" });
+                                circle.bindTooltip(houseNumber, { permanent: true, direction: "top", offset: L.point(0, -5), className: "leaflet-tooltip" });
 
                                 return circle;
                             }
                         }).addTo(map);
 
                         map.fitBounds(geojsonLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+
+                        seenData.forEach((features, key) => {
+                            if (features.length > 1) {
+                                markers.forEach(item => {
+                                    if (item.key === key) {
+                                        item.marker.setStyle({ color: "red", fillColor: "red" });
+                                    }
+                                });
+                            }
+                        });
                     } catch (error) {
                         console.error('Error parsing GeoJSON:', error);
                         alert('Error parsing GeoJSON file. Please ensure it is valid.');
