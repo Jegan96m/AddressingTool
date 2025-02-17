@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoJSON File Upload and Map Display</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        #map { height: 100vh; width: 100%; }
+        #controls {
+            position: absolute; top: 10px; left: 50px; background: white;
+            padding: 10px; z-index: 1000; border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        .leaflet-popup-content { width: 300px !important; max-width: 500px; max-height: 250px; overflow-x: auto; overflow-y: auto; white-space: nowrap; }
+        .leaflet-tooltip { background: none; border: none; box-shadow: none; font-size: 8px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        table, th, td { border: 1px solid black; padding: 5px; text-align: center; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h3>Upload a GeoJSON File</h3>
+        <input type="file" id="geojsonFileInput" accept=".geojson,.json">
+    </div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        function copyToClipboard(event) {
+            const popupContent = event.target.closest('.popup-container');
+            const table = popupContent.querySelector('table');
+
+            if (table) {
+                const secondRow = table.rows[1]; // Get the second row (index 1)
+                if (secondRow) {
+                    let rowText = Array.from(secondRow.cells).map(cell => cell.innerText).join("\t"); // Copy as tab-separated values
+                    const textArea = document.createElement("textarea");
+                    textArea.value = rowText;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                    alert("Second row copied to clipboard");
+                } else {
+                    alert("No second row found.");
+                }
+            } else {
+                alert("Table not found.");
+            }
+        }
+
+        function showPage2(event) {
+            const popup = event.target.closest('.popup-container');
+            popup.querySelector('#popupPage1').style.display = 'none';
+            popup.querySelector('#popupPage2').style.display = 'block';
+        }
+
+        function showPage1(event) {
+            const popup = event.target.closest('.popup-container');
+            popup.querySelector('#popupPage2').style.display = 'none';
+            popup.querySelector('#popupPage1').style.display = 'block';
+        }
+
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors', maxZoom: 20
+        }).addTo(map);
+
+        document.getElementById('geojsonFileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    try {
+                        const geojson = JSON.parse(content);
+                        map.eachLayer(layer => { if (layer instanceof L.GeoJSON) map.removeLayer(layer); });
+                        const seenData = new Map();
+                        const markers = [];
+
+                        geojson.features.forEach(feature => {
+                            let id = feature.properties?.ID || "Unknown";
+                            let houseNumber = feature.properties?.['House Number'] || "Unknown";
+                            let combinedKey = `${id} & ${houseNumber}`;
+                            if (!seenData.has(combinedKey)) seenData.set(combinedKey, []);
+                            seenData.get(combinedKey).push(feature);
+                        });
+
+                        const geojsonLayer = L.geoJSON(geojson, {
+                            pointToLayer: function(feature, latlng) {
+                                let id = feature.properties?.ID || "Unknown";
+                                let houseNumber = feature.properties?.['House Number'] || "Unknown";
+                                let vetroID = feature.properties?.['vetro_id'] || "Unknown";
+                                let address= feature.properties?.['Street Address'] || "Unknown";
+                                let combinedKey = `${id} & ${houseNumber}`;
+                                let color = seenData.get(combinedKey).length > 1 ? "red" : "#3388ff";
+                                let vetroLink = `https://app.vetro.io/fibermap/map?selectedFeature=${vetroID}#18.73/${latlng.lat}/${latlng.lng}`;
+
+                                let circle = L.circle(latlng, {
+                                    radius: 1.5, color: color, fillColor: color, fillOpacity: 0.5
+                                });
+
+                                feature.properties["ID & House Number"] = combinedKey;
+                                feature.properties["X Coordinate"] = latlng.lng;
+                                feature.properties["Y Coordinate"] = latlng.lat;
+
+                                let popupContent = `<div class='popup-container'>
+                                    <div class='popup-page' id='popupPage1'>
+                                        <b>ID & House Number:</b> ${combinedKey}<br>
+                                        <b>Address:</b> ${address}<br>
+                                        <b>y Coordinate:</b> ${latlng.lat}<br>
+                                        <b>x Coordinate:</b> ${latlng.lng}<br>
+                                        <br><b>View in Vetro:</b> 
+                                        <a href="${vetroLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Vetro Map</a>
+                                        <br><br><button onclick="showPage2(event)">Next →</button>
+                                    </div>`;
+
+                                let tableContent = `<table><tr>`;
+                                for (const prop in feature.properties) {
+                                    tableContent += `<th>${prop}</th>`;
+                                }
+                                tableContent += `</tr><tr>`;
+                                for (const prop in feature.properties) {
+                                    tableContent += `<td>${feature.properties[prop]}</td>`;
+                                }
+                                tableContent += `</tr></table>`;
+
+                                let popupPage2 = `<div class='popup-page' id='popupPage2' style='display:none;'>
+                                    <b>Feature Properties (Page 2):</b><br>
+                                    ${tableContent}
+                                    <br><button onclick="copyToClipboard(event)">Copy Table</button>
+                                    <br><button onclick="showPage1(event)">← Back</button>
+                                    </div></div>`;
+
+                                circle.bindPopup(popupContent + popupPage2, { maxWidth: 500 });
+                                markers.push({ key: combinedKey, marker: circle });
+                                circle.bindTooltip(houseNumber, { permanent: true, direction: "top", offset: L.point(0,-5), className: "leaflet-tooltip" });
+
+                                return circle;
+                            }
+                        }).addTo(map);
+
+                        map.fitBounds(geojsonLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+
+                        seenData.forEach((features, key) => {
+                            if (features.length > 1) {
+                                markers.forEach(item => {
+                                    if (item.key === key) {
+                                        item.marker.setStyle({ color: "red", fillColor: "red" });
+                                    }
+                                });
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error parsing GeoJSON:', error);
+                        alert('Error parsing GeoJSON file. Please ensure it is valid.');
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                alert('No file selected.');
+            }
+        });
+    </script>
+</body>
+</html>
