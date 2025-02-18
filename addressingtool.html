@@ -28,6 +28,8 @@
     <div id="controls">
         <h3>Upload address geojson file</h3>
         <input type="file" id="geojsonFileInput" accept=".geojson,.json">
+        
+        <!-- <a href="Combination.html" target="_blank">Go to Another Page</a> -->
     </div>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -107,7 +109,24 @@
             "Carto":cartoLight
         };
 
-        L.control.layers(baseMaps).addTo(map);
+        const layerControl = L.control.layers(baseMaps).addTo(map);
+
+        // Add the link below the Carto layer in the layer switcher
+        const link = document.createElement('a');
+        link.href = "Combination.html";
+        //link.target = "_blank";
+        link.textContent = "Address validation";
+        link.style.display = "block";
+        link.style.textAlign = "center";
+        link.style.marginTop = "10px";
+        link.style.color = "blue";
+        link.style.textDecoration = "underline";
+
+        // Insert the link after Carto in the layer control
+        const layerSwitcher = document.querySelector('.leaflet-control-layers-list');
+        if (layerSwitcher) {
+            layerSwitcher.appendChild(link);
+        }
 
 
         document.getElementById('geojsonFileInput').addEventListener('change', function(event) {
@@ -130,7 +149,8 @@
                             let id = feature.properties?.ID || "Unknown";
                             let houseNumber = feature.properties?.['House Number'] || "Unknown";
                             let unitNumber = feature.properties?.['Unit Number']|| "Unknown";
-                            let combinedKey = `${id} & ${houseNumber} & ${unitNumber}`;
+                            let address = feature.properties?.['Street Address'] || "Unknown";
+                            let combinedKey = `${id} & ${houseNumber} & ${unitNumber} & ${address}`;
                             if (!seenData.has(combinedKey)) seenData.set(combinedKey, []);
                             seenData.get(combinedKey).push(feature);
                         });
@@ -142,7 +162,7 @@
                                 let unitNumber = feature.properties?.['Unit Number']|| "Unknown";
                                 let vetroID = feature.properties?.['vetro_id'] || "Unknown";
                                 let address = feature.properties?.['Street Address'] || "Unknown";
-                                let combinedKey = `${id} & ${houseNumber} & ${unitNumber}`;
+                                let combinedKey = `${id} & ${houseNumber} & ${unitNumber} & ${address}`;
                                 let color = seenData.get(combinedKey).length > 1 ? "red" : "#3388ff";
                                 let vetroLink = `https://app.vetro.io/fibermap/map?selectedFeature=${vetroID}#18.73/${latlng.lat}/${latlng.lng}`;
 
@@ -153,6 +173,8 @@
                                 feature.properties["ID & House Number"] = combinedKey;
                                 feature.properties["X Coordinate"] = latlng.lng;
                                 feature.properties["Y Coordinate"] = latlng.lat;
+                                let Coordinate = `${latlng.lat},${latlng.lng}`;
+                                feature.properties["Coordinate"] = Coordinate;
                                 let streetViewLink = `https://www.google.com/maps?q=&layer=c&cbll=${latlng.lat},${latlng.lng}`;
 
                                 let popupContent = `<div class='popup-container'>
@@ -160,25 +182,42 @@
                                         <!-- <b>ID & House Number:</b> ${combinedKey}<br> --> <!-- hide this line -->
                                         <b>ID:</b> ${id}<br>
                                         <b>House Number:</b> ${houseNumber}<br>
+                                        <b>Unit:</b> ${unitNumber}<br>
                                         <b>Address:</b> ${address}<br>
-                                        <b>Coordinate:</b> ${latlng.lat},${latlng.lng}<br>
+                                        <b>Coordinate:</b> ${Coordinate}<br>
                                         <!-- <b>X Coordinate:</b> ${latlng.lng}<br> -->
                                         <br><b>View in Vetro:</b> 
                                         <a href="${vetroLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Vetro Map</a>
-                                        <br><b>Street View:</b> 
+                                        <br>
+                                        <b>Street View:</b> 
                                         <a href="${streetViewLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Street View</a>
                                         <br><br><button onclick="showPage2(event)">Next →</button>
                                     </div>`;
 
                                 // **Remove unwanted columns from Page 2**
-                                const excludedColumns = ["ID & House Number", "X Coordinate", "Y Coordinate"];
+                                const excludedColumns = ["ID & House Number"];
                                 let tableContent = `<table><tr>`;
                                 let tableRows = `<tr>`;
+                                let reorderedProperties = {};
 
-                                for (const prop in feature.properties) {
+                                // **Always place "X Coordinate" and "Y Coordinate" at the beginning**
+                                reorderedProperties["X Coordinate"] = feature.properties["X Coordinate"];
+                                reorderedProperties["Y Coordinate"] = feature.properties["Y Coordinate"];
+                                reorderedProperties["Coordinate"] = feature.properties["Coordinate"];
+
+                                // **Now add all other properties**
+                                Object.keys(feature.properties).forEach(prop => {
+                                    if (!["X Coordinate", "Y Coordinate"].includes(prop)) {
+                                        reorderedProperties[prop] = feature.properties[prop];
+                                    }
+                                });
+
+                                // **Generate table content**
+                                for (const prop in reorderedProperties) {
                                     if (!excludedColumns.includes(prop)) {
                                         tableContent += `<th>${prop}</th>`;
-                                        tableRows += `<td>${feature.properties[prop]}</td>`;
+                                        //tableRows += `<td>${feature.properties[prop]}</td>`;
+                                        tableRows += `<td>${reorderedProperties[prop]}</td>`;
                                     }
                                 }
 
