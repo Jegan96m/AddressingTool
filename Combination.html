@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Address Validation</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+  <style>
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      height: 100%; 
+      overflow: hidden; 
+    }
+    #map { 
+      height: 100%; 
+      width: 100%; 
+    }
+    .leaflet-control-attribution {
+      font-size: 18px; 
+    }
+    #controls {
+      position: absolute; 
+      top: 10px; 
+      left: 50px; 
+      background: transparent;
+      padding: 10px; 
+      z-index: 1000; 
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0);
+    }
+    .leaflet-popup-content { 
+      width: 350px !important; 
+      max-width: 300px; 
+      max-height: 300px; 
+      overflow-x: auto; 
+      overflow-y: auto; 
+      white-space: nowrap; 
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 5px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .popup-nav {
+      text-align: center;
+      margin-top: 5px;
+    }
+    .popup-nav button {
+      padding: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h3>Address Validation between Layers</h3>
+    <input type="file" id="geojsonFile1" accept=".geojson" />
+    <input type="file" id="geojsonFile2" accept=".geojson" />
+  </div>
+  <div id="map"></div>
+  
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', { attributionControl: false }).setView([0, 0], 2); 
+
+    L.control.attribution({
+      position: 'bottomright',
+      prefix: '<a href="https://app.vetro.io/fibermap/" target="_blank">Vetro</a>' 
+    }).addTo(map);
+
+    // Basemap Layers
+    const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; Develop by JGN', maxZoom:22
+    });
+
+
+     // Other Basemap Options
+     const googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: '@ <a href="https://www.google.com/maps" target="_blank">Google Maps JGN</a>',maxZoom:50
+        });
+        const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: '&copy; <a href="https://www.google.com/maps" target="_blank">Google Satellite JGN</a>',
+            maxZoom: 50
+        });
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.carto.com/" target="_blank">CARTO JGN</a>', subdomains: 'abcd', maxZoom: 20
+        });
+      
+        
+       // Basemap Control
+        const baseMaps = {
+            "Default map": osmStandard,
+            "Google streets": googleStreets,
+            "Google satellite": googleSatellite,
+            "Carto":cartoLight
+        };
+
+        // Adding default basemap to map and layer control for switching
+    osmStandard.addTo(map);
+    L.control.layers(baseMaps).addTo(map);
+
+    // Add the link below the Carto layer in the layer switcher
+    const link = document.createElement('a');
+    link.href = "index.html";
+    //link.target = "_blank";
+    link.textContent = "Addressing Tool";
+    link.style.display = "block";
+    link.style.textAlign = "center";
+    link.style.marginTop = "10px";
+    link.style.color = "blue";
+    link.style.textDecoration = "underline";
+
+    // Insert the link after Carto in the layer control
+    const layerSwitcher = document.querySelector('.leaflet-control-layers-list');
+    if (layerSwitcher) {
+        layerSwitcher.appendChild(link);
+    }
+
+    // Store combined ID and House Number pairs
+    let combinedData = {};
+
+    // Function to create popup content with pagination
+    function createPopupContent(feature, featureId, latlng) {
+      var id = feature.properties.ID || "N/A";
+      var houseNumber = feature.properties["House Number"] || "N/A";
+      var street = feature.properties["Street Address"] || "N/A";
+      let unitNumber = feature.properties["Unit Number"] || "N/A";
+      let vetroID = feature.properties?.['vetro_id'] || "N/A";
+      var latitude = latlng.lat; // Rounding to 6 decimal places
+      var longitude = latlng.lng;
+      let Coordinate = `${latitude},${longitude}`;
+      let vetroLink = `https://app.vetro.io/fibermap/map?selectedFeature=${vetroID}#18.73/${latitude}/${longitude}`;
+      let streetViewLink = `https://www.google.com/maps?q=&layer=c&cbll=${latitude},${longitude}`;
+    
+      // Prepare the table headers and values, adding coordinates as columns in the same row
+      var tableHeaders = `<th>X</th><th>Y</th><th>Coordinate</th>` + Object.keys(feature.properties).map(key => `<th>${key}</th>`).join('');
+      var tableValues = `<td>${longitude}</td><td>${latitude}</td><td>${Coordinate}</td>` + Object.keys(feature.properties).map(key => `<td>${feature.properties[key]}</td>`).join('');
+    
+      return `
+        <div id="popup-page-1-${featureId}">
+            <b>ID:</b> ${id}<br>
+            <b>House Number:</b> ${houseNumber}<br>
+            <b>Unit Number:</b> ${unitNumber}<br>
+            <b>Address:</b> ${street}<br>
+            <b>Coordinate:</b> ${Coordinate}<br>
+            <b>View in Vetro:</b> 
+            <a href="${vetroLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Vetro Map</a><br>
+            <b>Street View:</b> 
+            <a href="${streetViewLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Street View</a><br><br>
+            <div class="popup-nav">
+                <button onclick="showPage(${featureId}, 2)">Next</button>
+            </div>
+        </div>
+        <div id="popup-page-2-${featureId}" style="display:none;">
+            <table>
+                <tr>${tableHeaders}</tr>
+                <tr>${tableValues}</tr>
+            </table>
+            <br><button onclick="copyToClipboard(event)">Copy Table</button>
+            <div class="popup-nav">
+                <button onclick="showPage(${featureId}, 1)">Back</button>
+            </div>
+        </div>
+    `;
+    }
+
+    // Function to handle copy functionality
+    function copyToClipboard(event) {
+        const popupContent = event.target.closest('.leaflet-popup-content');
+        const table = popupContent.querySelector('table');
+        const secondRow = table.rows[1]; // Get the second row (index 1)
+
+        if (secondRow) {
+            let rowText = Array.from(secondRow.cells).map(cell => cell.innerText).join("\t"); // Copy as tab-separated values
+            const textArea = document.createElement("textarea");
+            textArea.value = rowText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert("Copied to clipboard");
+        } else {
+            alert("No second row found.");
+        }
+    }
+
+    function showPage(featureId, page) {
+        document.getElementById(`popup-page-1-${featureId}`).style.display = (page === 1) ? 'block' : 'none';
+        document.getElementById(`popup-page-2-${featureId}`).style.display = (page === 2) ? 'block' : 'none';
+    }
+
+    // Function to handle file upload and display GeoJSON with popups
+    function handleFileUpload(event, geojsonLayer, markerColor) {
+        var file = event.target.files[0];
+        var reader = new FileReader();
+
+        reader.onload = function(e) {
+            var geojsonData = JSON.parse(e.target.result);
+            geojsonLayer.clearLayers(); 
+
+            var geojsonMarkerOptions = {
+                radius: 1.5,
+                fillColor: markerColor,
+                color: markerColor,
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.5
+            };
+
+            var featureCounter = 0; // Assign unique ID to each feature for proper popup navigation
+
+            var newGeojsonLayer = L.geoJSON(geojsonData, {
+                pointToLayer: function(feature, latlng) {
+                    featureCounter++; 
+                    
+                    // Combine ID and House Number
+                    const combinedKey = `${feature.properties.ID}-${feature.properties["House Number"]}`;
+                    
+                    // If this combined key exists in the combinedData object, set the marker color to red
+                    if (combinedData[combinedKey]) {
+                        geojsonMarkerOptions.fillColor = 'red';
+                        geojsonMarkerOptions.color = 'red';
+                    } else {
+                        geojsonMarkerOptions.fillColor = markerColor;
+                        geojsonMarkerOptions.color = markerColor;
+                    }
+
+                    // Store the combined key for future comparison
+                    combinedData[combinedKey] = true;
+
+                    return L.circleMarker(latlng, geojsonMarkerOptions).bindPopup(createPopupContent(feature, featureCounter, latlng));
+                }
+            });
+
+            newGeojsonLayer.addTo(geojsonLayer); 
+
+            if (newGeojsonLayer.getBounds().isValid()) {
+                map.fitBounds(newGeojsonLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
+            }
+        };
+
+        if (file) {
+            reader.readAsText(file);
+        }
+    }
+
+    var geojsonLayer1 = L.layerGroup().addTo(map);
+    var geojsonLayer2 = L.layerGroup().addTo(map);
+
+    document.getElementById('geojsonFile1').addEventListener('change', function(event) {
+        handleFileUpload(event, geojsonLayer1, 'blue'); 
+    });
+
+    document.getElementById('geojsonFile2').addEventListener('change', function(event) {
+        handleFileUpload(event, geojsonLayer2, 'green'); 
+    });
+  </script>
+</body>
+</html>
