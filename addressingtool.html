@@ -129,7 +129,8 @@
                         geojson.features.forEach(feature => {
                             let id = feature.properties?.ID || "Unknown";
                             let houseNumber = feature.properties?.['House Number'] || "Unknown";
-                            let combinedKey = `${id} & ${houseNumber}`;
+                            let unitNumber = feature.properties?.['Unit Number']|| "Unknown";
+                            let combinedKey = `${id} & ${houseNumber} & ${unitNumber}`;
                             if (!seenData.has(combinedKey)) seenData.set(combinedKey, []);
                             seenData.get(combinedKey).push(feature);
                         });
@@ -138,9 +139,10 @@
                             pointToLayer: function(feature, latlng) {
                                 let id = feature.properties?.ID || "Unknown";
                                 let houseNumber = feature.properties?.['House Number'] || "Unknown";
+                                let unitNumber = feature.properties?.['Unit Number']|| "Unknown";
                                 let vetroID = feature.properties?.['vetro_id'] || "Unknown";
                                 let address = feature.properties?.['Street Address'] || "Unknown";
-                                let combinedKey = `${id} & ${houseNumber}`;
+                                let combinedKey = `${id} & ${houseNumber} & ${unitNumber}`;
                                 let color = seenData.get(combinedKey).length > 1 ? "red" : "#3388ff";
                                 let vetroLink = `https://app.vetro.io/fibermap/map?selectedFeature=${vetroID}#18.73/${latlng.lat}/${latlng.lng}`;
 
