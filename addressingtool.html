@@ -118,6 +118,10 @@
                     const content = e.target.result;
                     try {
                         const geojson = JSON.parse(content);
+
+                        // Hide the #controls box
+                        document.getElementById('controls').style.display = 'none';
+
                         map.eachLayer(layer => { if (layer instanceof L.GeoJSON) map.removeLayer(layer); });
                         const seenData = new Map();
                         const markers = [];
@@ -151,10 +155,12 @@
 
                                 let popupContent = `<div class='popup-container'>
                                     <div class='popup-page' id='popupPage1'>
-                                        <b>ID & House Number:</b> ${combinedKey}<br>
+                                        <!-- <b>ID & House Number:</b> ${combinedKey}<br> --> <!-- hide this line -->
+                                        <b>ID:</b> ${id}<br>
+                                        <b>House Number:</b> ${houseNumber}<br>
                                         <b>Address:</b> ${address}<br>
-                                        <b>Y Coordinate:</b> ${latlng.lat}<br>
-                                        <b>X Coordinate:</b> ${latlng.lng}<br>
+                                        <b>Coordinate:</b> ${latlng.lat},${latlng.lng}<br>
+                                        <!-- <b>X Coordinate:</b> ${latlng.lng}<br> -->
                                         <br><b>View in Vetro:</b> 
                                         <a href="${vetroLink}" target="_blank" style="color: blue; text-decoration: underline;">Open Vetro Map</a>
                                         <br><b>Street View:</b> 
